@@ -1,5 +1,8 @@
 package com.indra.marketplace.shopping.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.indra.marketplace.shopping.config.CustomDoubleSerializer;
 import com.indra.marketplace.shopping.dto.Product;
 
 import jakarta.persistence.Column;
@@ -30,6 +33,7 @@ public class CartItem {
     private Double  price;
     
     @Transient
+    @JsonSerialize(using = CustomDoubleSerializer.class)
     private Double subTotal;
 
     @Transient

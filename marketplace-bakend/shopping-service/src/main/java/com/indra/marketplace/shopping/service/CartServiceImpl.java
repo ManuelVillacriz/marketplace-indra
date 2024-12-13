@@ -52,8 +52,12 @@ public class CartServiceImpl extends CommonServiceImpl<Cart, CartRepository> imp
 		cartDb = repository.save(cart);
 		cartDb.getItems().forEach(cartItem -> {
 			
+			Integer currentStock = getProductStockOrThrow(cartItem.getProductId());
+			
+			validateStockAvailability(cartItem.getQuantity(), currentStock, cartItem.getProductId());
+			
 			 Double price = productClient.getProductPrice(cartItem.getProductId());			 
-			 cartItem.setPrice(price);
+			 cartItem.setPrice(calculatePriceWithDiscount(LocalDate.now(),price));
 			 
 			 productClient.updateStockProduct( cartItem.getProductId(),
 					 cartItem.getQuantity() * -1);
@@ -96,35 +100,21 @@ public class CartServiceImpl extends CommonServiceImpl<Cart, CartRepository> imp
                     return repository.save(newCart);
                 });
 		
-		Integer currentStock;
+		Integer currentStock = getProductStockOrThrow(requestProduct.getProductId());
 		
-		try {
-			currentStock = productClient.getProductStock(requestProduct.getProductId());
-		} catch (FeignException.FeignClientException e) {
-		    throw new ProductNoFoundException("Producto con ID " + requestProduct.getProductId() + " no encontrado.");
-		}
-		
-
         Optional<CartItem> existingItem = cart.getItems().stream()
                 .filter(item -> item.getProductId().equals(requestProduct.getProductId()))
                 .findFirst();
 
         Double price = 0.0;
-        int totalRequestedQuantity;
+        //int totalRequestedQuantity;
         
         if (existingItem.isPresent()) {
             CartItem item = existingItem.get();
             
             price = productClient.getProductPrice(item.getProductId());
             
-            totalRequestedQuantity = item.getQuantity() + requestProduct.getQuantity();
-
-            if (totalRequestedQuantity > currentStock) {
-                throw new ProductOutOfStockException(
-                        "Stock insuficiente para el producto " + requestProduct.getProductId()
-                        + ". Stock disponible: " + currentStock);
-            }
-
+            validateStockAvailability(item.getQuantity() + requestProduct.getQuantity(), currentStock, requestProduct.getProductId());
             
 			item.setPrice(calculatePriceWithDiscount(LocalDate.now(),price));			
             item.setQuantity(item.getQuantity() + requestProduct.getQuantity());
@@ -153,16 +143,8 @@ public class CartServiceImpl extends CommonServiceImpl<Cart, CartRepository> imp
         Optional<CartItem> existingItem = cart.getItems().stream()
                 .filter(item -> item.getProductId().equals(productId))
                 .findFirst();
-        
-        Integer currentStock;
 		
-		try {
-			currentStock = productClient.getProductStock(productId);
-		} catch (FeignException.FeignClientException e) {
-		    throw new ProductNoFoundException("Producto con ID " + productId + " no encontrado.");
-		}
-		
-		int totalRequestedQuantity;
+		Integer currentStock = getProductStockOrThrow(productId);
 
         if (existingItem.isPresent()) {
             CartItem item = existingItem.get();
@@ -175,14 +157,7 @@ public class CartServiceImpl extends CommonServiceImpl<Cart, CartRepository> imp
                     price = 0.0;  
                 }
                 
-                totalRequestedQuantity = item.getQuantity() + quantity;
-
-                if (totalRequestedQuantity > currentStock) {
-                    throw new ProductOutOfStockException(
-                            "Stock insuficiente para el producto " + productId
-                            + ". Stock disponible: " + currentStock);
-                }
-
+                validateStockAvailability(item.getQuantity() + quantity, currentStock, productId);
                 
     			item.setPrice(calculatePriceWithDiscount(LocalDate.now(),price));
                 
@@ -211,7 +186,24 @@ public class CartServiceImpl extends CommonServiceImpl<Cart, CartRepository> imp
         double discountRate = (month >= 1 && month <= 6) ? descuentoPrimerSemestre : descuentoSegundoSemestre;
 
         return price-(price * discountRate);
-    }	
+    }
+	
+	private Integer getProductStockOrThrow(Long productId) {
+	    try {
+	        return productClient.getProductStock(productId);
+	    } catch (FeignException.FeignClientException e) {
+	        throw new ProductNoFoundException("Producto con ID " + productId + " no encontrado.");
+	    }
+	}
+	
+	private void validateStockAvailability(Integer quantityRequest, Integer currentStock, Long productId) {	    
+	    if (quantityRequest > currentStock) {
+	        throw new ProductOutOfStockException(
+	            "Stock insuficiente para el producto " + productId +
+	            ". Stock disponible: " + currentStock
+	        );
+	    }
+	}
 	
 	
 }

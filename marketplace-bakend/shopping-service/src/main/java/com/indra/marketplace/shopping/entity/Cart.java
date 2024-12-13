@@ -4,7 +4,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.indra.marketplace.shopping.config.CustomDoubleSerializer;
 import com.indra.marketplace.shopping.dto.Customer;
 
 import jakarta.persistence.CascadeType;
@@ -47,6 +50,7 @@ public class Cart {
 	@Transient
 	private Customer customer;
 
+	@JsonSerialize(using = CustomDoubleSerializer.class)
 	private Double total;
 	
 	@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
