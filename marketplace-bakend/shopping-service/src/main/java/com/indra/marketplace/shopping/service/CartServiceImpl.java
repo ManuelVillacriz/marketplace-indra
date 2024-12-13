@@ -52,7 +52,7 @@ public class CartServiceImpl extends CommonServiceImpl<Cart, CartRepository> imp
 		cartDb = repository.save(cart);
 		cartDb.getItems().forEach(cartItem -> {
 			
-			 Double price = productClient.getProductPrice(cartItem.getId());			 
+			 Double price = productClient.getProductPrice(cartItem.getProductId());			 
 			 cartItem.setPrice(price);
 			 
 			 productClient.updateStockProduct( cartItem.getProductId(),
